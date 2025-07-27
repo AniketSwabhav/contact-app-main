@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"contact-app-main/components/apperror"
 	"contact-app-main/components/security"
 	"contact-app-main/components/user/service"
 	"contact-app-main/components/utils"
@@ -23,16 +24,21 @@ type UserInput struct {
 }
 
 func RegisterAdmin(w http.ResponseWriter, r *http.Request) {
-	var userInput *UserInput
+	var userInput UserInput
 	err := json.NewDecoder(r.Body).Decode(&userInput)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "INVALID_JSON", "Failed to parse request body", err))
 		return
 	}
 
-	createdUser, err := service.CreateAdmin(userInput.FirstName, userInput.LastName, userInput.Email, userInput.Password)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if userInput.FirstName == "" || userInput.LastName == "" || userInput.Email == "" || userInput.Password == "" {
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "MISSING_FIELDS", "All fields are required", nil))
+		return
+	}
+
+	createdUser, appErr := service.CreateAdmin(userInput.FirstName, userInput.LastName, userInput.Email, userInput.Password)
+	if appErr != nil {
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusInternalServerError, "CREATE_ADMIN_FAILED", "Failed to create admin user", err))
 		return
 	}
 
@@ -40,16 +46,21 @@ func RegisterAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var userInput *UserInput
+	var userInput UserInput
 	err := json.NewDecoder(r.Body).Decode(&userInput)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "INVALID_JSON", "Failed to parse request body", err))
 		return
 	}
 
-	createdUser, err := service.CreateUser(userInput.FirstName, userInput.LastName, userInput.Email, userInput.Password)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if userInput.FirstName == "" || userInput.LastName == "" || userInput.Email == "" || userInput.Password == "" {
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "MISSING_FIELDS", "All fields are required", nil))
+		return
+	}
+
+	createdUser, appErr := service.CreateUser(userInput.FirstName, userInput.LastName, userInput.Email, userInput.Password)
+	if appErr != nil {
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusInternalServerError, "CREATE_USER_FAILED", "Failed to create user", err))
 		return
 	}
 
@@ -61,21 +72,19 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	var userCredentials *credential.Credentials
 	err := json.NewDecoder(r.Body).Decode(&userCredentials)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "INVALID_JSON", "Failed to parse request body", err))
 		return
 	}
 
-	// Validates Credentials
 	err = userCredentials.ValidateCredential()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "INVALID_CREDENTIALS", err.Error(), nil))
 		return
 	}
 
-	// Finds User
-	foundUser, err := service.Login(userCredentials.Email, userCredentials.Password)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	foundUser, appErr := service.Login(userCredentials.Email, userCredentials.Password)
+	if appErr != nil {
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusUnauthorized, "LOGIN_FAILED", "Invalid email or password", err))
 		return
 	}
 
@@ -91,7 +100,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := claim.Coder()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusInternalServerError, "TOKEN_GENERATION_FAILED", "Failed to generate token", err))
 		return
 	}
 
@@ -106,18 +115,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 func GetUserByID(w http.ResponseWriter, r *http.Request) {
 
-	// id := r.URL.Query().Get("id")
-	// if id == "" {
-	// 	http.Error(w, "missing 'id' query parameter", http.StatusBadRequest)
-	// 	return
-	// }
-
 	vars := mux.Vars(r)
 	userIdFromURL := vars["id"]
 
 	foundUser, err := service.FindUserByID(userIdFromURL)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusNotFound, "USER_NOT_FOUND", err.Error(), err))
 		return
 	}
 
@@ -127,7 +130,7 @@ func GetUserByID(w http.ResponseWriter, r *http.Request) {
 func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := service.GetAllUsers()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusInternalServerError, "GET_USERS_FAILED", err.Error(), err))
 		return
 	}
 
@@ -136,25 +139,19 @@ func GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 // Put User
 func UpdateUserByID(w http.ResponseWriter, r *http.Request) {
-	// id := r.URL.Query().Get("id")
-	// if id == "" {
-	// 	http.Error(w, "missing 'id' query parameter", http.StatusBadRequest)
-	// 	return
-	// }
-
 	vars := mux.Vars(r)
 	userIdFromURL := vars["id"]
 
-	var user *UserInput
-	err := json.NewDecoder(r.Body).Decode(&user)
+	var userInput UserInput
+	err := json.NewDecoder(r.Body).Decode(&userInput)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "INVALID_JSON", "Failed to parse request body", err))
 		return
 	}
 
-	updatedUser, err := service.Update(userIdFromURL, user.FirstName, user.LastName, user.IsAdmin, user.IsActive)
+	updatedUser, err := service.Update(userIdFromURL, userInput.FirstName, userInput.LastName, userInput.IsAdmin, userInput.IsActive)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "UPDATE_FAILED", err.Error(), err))
 		return
 	}
 
@@ -163,21 +160,14 @@ func UpdateUserByID(w http.ResponseWriter, r *http.Request) {
 
 func DeleteUserByID(w http.ResponseWriter, r *http.Request) {
 
-	// id := r.URL.Query().Get("id")
-	// if id == "" {
-	// 	http.Error(w, "missing 'id' query parameter", http.StatusBadRequest)
-	// 	return
-	// }
-
 	vars := mux.Vars(r)
 	userIdFromURL := vars["id"]
 
 	err := service.DeleteUserByID(userIdFromURL)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusNotFound, "DELETE_FAILED", err.Error(), err))
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	utils.WriteJSON(w, http.StatusNoContent, nil)
 }

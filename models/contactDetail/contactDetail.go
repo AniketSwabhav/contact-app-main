@@ -1,8 +1,6 @@
 package contactdetail
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 )
 
@@ -20,6 +18,5 @@ func NewContactDetail(detailType string, value interface{}) *ContactDetail {
 		Type:            detailType,
 		Value:           value,
 	}
-	fmt.Printf("Contact Detail created with ContactDetailId %d\n", contactDetailId)
 	return contactDetail
 }

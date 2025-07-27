@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"contact-app-main/components/apperror"
 	"contact-app-main/components/contactDetail/service"
 	"contact-app-main/components/security"
 	"contact-app-main/components/utils"
@@ -22,19 +23,19 @@ func CreateContactDetail(w http.ResponseWriter, r *http.Request) {
 
 	var input ContactDetailInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "InvalidJSON", "Invalid JSON body", err))
 		return
 	}
 
 	claims, err := security.ValidateToken(w, r)
 	if err != nil || claims.UserID != userId {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusUnauthorized, "Unauthorized", "invalid token or userId mismatch", err))
 		return
 	}
 
-	contactDetail, err := service.CreateContactDetail(userId, contactId, input.Type, input.Value)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	contactDetail, appErr := service.CreateContactDetail(userId, contactId, input.Type, input.Value)
+	if appErr != nil {
+		utils.RespondWithAppError(w, appErr)
 		return
 	}
 
@@ -48,13 +49,13 @@ func GetAllContactDetails(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := security.ValidateToken(w, r)
 	if err != nil || claims.UserID != userId {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusUnauthorized, "Unauthorized", "invalid token or userId mismatch", err))
 		return
 	}
 
-	details, err := service.GetContactDetails(userId, contactId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	details, appErr := service.GetContactDetails(userId, contactId)
+	if appErr != nil {
+		utils.RespondWithAppError(w, appErr)
 		return
 	}
 
@@ -69,13 +70,13 @@ func GetContactDetailById(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := security.ValidateToken(w, r)
 	if err != nil || claims.UserID != userId {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusUnauthorized, "Unauthorized", "invalid token or userId mismatch", err))
 		return
 	}
 
-	detail, err := service.GetContactDetailById(userId, contactId, contactDetailId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	detail, appErr := service.GetContactDetailById(userId, contactId, contactDetailId)
+	if appErr != nil {
+		utils.RespondWithAppError(w, appErr)
 		return
 	}
 
@@ -90,19 +91,19 @@ func UpdateContactDetail(w http.ResponseWriter, r *http.Request) {
 
 	var input ContactDetailInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusBadRequest, "InvalidJSON", "Invalid JSON body", err))
 		return
 	}
 
 	claims, err := security.ValidateToken(w, r)
 	if err != nil || claims.UserID != userId {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusUnauthorized, "Unauthorized", "invalid token or userId mismatch", err))
 		return
 	}
 
-	updatedDetail, err := service.UpdateContactDetail(userId, contactId, contactDetailId, input.Type, input.Value)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	updatedDetail, appErr := service.UpdateContactDetail(userId, contactId, contactDetailId, input.Type, input.Value)
+	if appErr != nil {
+		utils.RespondWithAppError(w, appErr)
 		return
 	}
 
@@ -117,13 +118,13 @@ func DeleteContactDetail(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := security.ValidateToken(w, r)
 	if err != nil || claims.UserID != userId {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithAppError(w, apperror.NewAppError(http.StatusUnauthorized, "Unauthorized", "invalid token or userId mismatch", err))
 		return
 	}
 
-	err = service.DeleteContactDetail(userId, contactId, contactDetailId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	appErr := service.DeleteContactDetail(userId, contactId, contactDetailId)
+	if appErr != nil {
+		utils.RespondWithAppError(w, appErr)
 		return
 	}
 

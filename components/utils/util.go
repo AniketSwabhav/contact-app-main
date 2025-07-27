@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"contact-app-main/components/apperror"
 	"encoding/json"
 	"net/http"
 )
@@ -16,4 +17,8 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}) {
 	}
 
 	w.Write(jsonData)
+}
+
+func RespondWithAppError(w http.ResponseWriter, appErr *apperror.AppError) {
+	WriteJSON(w, appErr.StatusCode, appErr)
 }

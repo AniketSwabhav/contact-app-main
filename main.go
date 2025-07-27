@@ -3,7 +3,7 @@ package main
 import (
 	contactController "contact-app-main/components/contact/controller"
 	contactDetailController "contact-app-main/components/contactDetail/controller"
-	"contact-app-main/components/security"
+	"contact-app-main/components/middleware"
 	userController "contact-app-main/components/user/controller"
 	"contact-app-main/models/credential"
 	"contact-app-main/models/user"
@@ -36,11 +36,13 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 
+	router.Use(middleware.RecoverMiddleware)
+
 	// ----------------------------------------------------------------------------------------------------------------------------------
 
 	adminRouter := router.PathPrefix("/").Subrouter()
-	// Middleware for security
-	adminRouter.Use(security.MiddlewareAdmin)
+
+	adminRouter.Use(middleware.MiddlewareAdmin)
 
 	// login
 	router.HandleFunc("/login", userController.Login).Methods("POST")
@@ -58,7 +60,7 @@ func main() {
 	// ----------------------------------------------------------------------------------------------------------------------------------
 
 	userRouter := router.PathPrefix("/users/{userId}/contact").Subrouter()
-	userRouter.Use(security.MiddlewareContact)
+	userRouter.Use(middleware.MiddlewareContact)
 
 	userRouter.HandleFunc("", contactController.CreateContact).Methods("POST")
 	userRouter.HandleFunc("", contactController.GetAllContacts).Methods("GET")
@@ -69,7 +71,7 @@ func main() {
 	// ----------------------------------------------------------------------------------------------------------------------------------
 
 	contactDetailRouter := router.PathPrefix("/users/{userId}/contacts/{contactId}/details").Subrouter()
-	contactDetailRouter.Use(security.MiddlewareContact)
+	contactDetailRouter.Use(middleware.MiddlewareContact)
 
 	contactDetailRouter.HandleFunc("", contactDetailController.CreateContactDetail).Methods("POST")
 	contactDetailRouter.HandleFunc("", contactDetailController.GetAllContactDetails).Methods("GET")
